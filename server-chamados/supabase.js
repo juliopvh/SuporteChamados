@@ -2,9 +2,16 @@
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
-// Lê as chaves do arquivo .env de forma segura
-const supabaseUrl = "coloque a url aqui";
-const supabaseKey = "coloque a key aqui";
+// Lê as chaves das variáveis de ambiente (funciona local com .env e no Render com Environment Variables)
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    "SUPABASE_URL e SUPABASE_KEY não configurados. " +
+    "Defina essas variáveis de ambiente (.env localmente ou no painel do Render)."
+  );
+}
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
