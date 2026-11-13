@@ -1,0 +1,76 @@
+### 1. TESTAR GET (Listar todos os chamados)
+GET http://localhost:3001/api/chamados
+
+### 2. TESTAR POST (Cadastrar novo chamado)
+POST http://localhost:3001/api/chamados
+Content-Type: application/json
+
+{
+  "titulo": "Teclado com defeito no setor 2",
+  "descricao": "Tecla Enter travada e sem resposta.",
+  "prioridade": "Alta"
+}
+
+### 3. TESTAR PUT (Atualizar status do chamado 101)
+PUT http://localhost:3001/api/chamados/101
+Content-Type: application/json
+
+{
+  "status": "Concluído"
+}
+
+### 4. TESTAR DELETE (Excluir o chamado 102)
+DELETE http://localhost:3001/api/chamados/1794420865107
+
+### 1. CADASTRAR NOVO USUÁRIO (Senha é salva como Hash no Supabase!)
+POST http://localhost:3001/api/auth/cadastrar
+Content-Type: application/json
+
+{
+  "nome": "Júlio César",
+  "email": "julio@email.com",
+  "senha": "123456"
+}
+
+### 2. FAZER LOGIN (Retorna o TOKEN JWT)
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "carlos@email.com",
+  "senha": "senhaSegura123"
+}
+
+### 3. TENTAR CRIAR CHAMADO SEM TOKEN (Deve retornar Erro 401 - Negado)
+POST http://localhost:3001/api/chamados
+Content-Type: application/json
+
+{
+  "titulo": "Tentativa de invasão",
+  "descricao": "Sem token de autorização"
+}
+
+### 4. CRIAR CHAMADO COM TOKEN VÁLIDO (Cole o token retornado do login abaixo)
+POST http://localhost:3001/api/chamados
+Content-Type: application/json
+Authorization: Bearer COLE_O_TOKEN_AQUI_APOS_FAZER_LOGIN
+
+{
+  "titulo": "Monitor sem imagem no setor 3",
+  "descricao": "Cabo HDMI solto na estação de trabalho.",
+  "prioridade": "Média"
+}
+
+
+//TESTES PARA O MARIADB
+
+### CADASTRAR NOVO CHAMADO NO MARIADB (POST)
+POST http://localhost:3001/api/mariadb/chamados
+Content-Type: application/json
+
+{
+  "titulo": "Computador não liga no setor de Vendas",
+  "descricao": "Fonte de alimentação com cheiro de queimado.",
+  "prioridade": "Alta",
+  "usuario_id": 1
+}
