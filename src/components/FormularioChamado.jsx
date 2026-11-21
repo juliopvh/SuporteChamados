@@ -1,37 +1,28 @@
 // src/components/FormularioChamado.jsx
 import { useState } from "react";
 
-export default function FormularioChamado({ onAdicionarChamado }) {
-  // Estados para controlar cada campo do formulário
+export default function FormularioChamado({ onAdicionarChamado, salvando = false }) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [prioridade, setPrioridade] = useState("Baixa");
   const [erro, setErro] = useState("");
 
-  // Função disparada ao enviar o formulário
   function handleSubmit(e) {
-    e.preventDefault(); // Impede o recarregamento da página
+    e.preventDefault();
 
-    // Validação simples de campos obrigatórios
     if (!titulo.trim() || !descricao.trim()) {
       setErro("Por favor, preencha o título e a descrição!");
       return;
     }
 
-    // Cria o novo objeto de chamado
     const novoChamado = {
-      id: Date.now(), // Gera um ID temporário único baseado no tempo
-      titulo,
-      descricao,
+      titulo: titulo.trim(),
+      descricao: descricao.trim(),
       prioridade,
-      statusInicial: "Aberto",
-      data: new Date().toLocaleDateString("pt-BR"),
     };
 
-    // Envia o novo chamado para o componente pai (App.jsx)
     onAdicionarChamado(novoChamado);
 
-    // Limpa o formulário e erros
     setTitulo("");
     setDescricao("");
     setPrioridade("Baixa");
@@ -42,7 +33,6 @@ export default function FormularioChamado({ onAdicionarChamado }) {
     <form className="form-chamado" onSubmit={handleSubmit}>
       <h3>➕ Cadastrar Novo Chamado</h3>
 
-      {/* Mensagem de erro de validação */}
       {erro && <div className="mensagem-erro">{erro}</div>}
 
       <div className="form-group">
@@ -53,6 +43,8 @@ export default function FormularioChamado({ onAdicionarChamado }) {
           placeholder="Ex: Teclado com defeito"
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
+          disabled={salvando}
+          required
         />
       </div>
 
@@ -64,6 +56,8 @@ export default function FormularioChamado({ onAdicionarChamado }) {
           placeholder="Descreva o problema detalhadamente..."
           value={descricao}
           onChange={(e) => setDescricao(e.target.value)}
+          disabled={salvando}
+          required
         />
       </div>
 
@@ -73,6 +67,7 @@ export default function FormularioChamado({ onAdicionarChamado }) {
           id="prioridade"
           value={prioridade}
           onChange={(e) => setPrioridade(e.target.value)}
+          disabled={salvando}
         >
           <option value="Baixa">Baixa</option>
           <option value="Média">Média</option>
@@ -80,8 +75,13 @@ export default function FormularioChamado({ onAdicionarChamado }) {
         </select>
       </div>
 
-      <button type="submit" className="btn-salvar">
-        Salvar Chamado
+      <button
+        type="submit"
+        className="btn-salvar"
+        disabled={salvando}
+        style={{ opacity: salvando ? 0.7 : 1 }}
+      >
+        {salvando ? "Salvando Chamado..." : "Salvar Chamado"}
       </button>
     </form>
   );

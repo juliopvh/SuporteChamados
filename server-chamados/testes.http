@@ -1,28 +1,4 @@
-### 1. TESTAR GET (Listar todos os chamados)
-GET http://localhost:3001/api/chamados
-
-### 2. TESTAR POST (Cadastrar novo chamado)
-POST http://localhost:3001/api/chamados
-Content-Type: application/json
-
-{
-  "titulo": "Teclado com defeito no setor 2",
-  "descricao": "Tecla Enter travada e sem resposta.",
-  "prioridade": "Alta"
-}
-
-### 3. TESTAR PUT (Atualizar status do chamado 101)
-PUT http://localhost:3001/api/chamados/101
-Content-Type: application/json
-
-{
-  "status": "Concluído"
-}
-
-### 4. TESTAR DELETE (Excluir o chamado 102)
-DELETE http://localhost:3001/api/chamados/1794420865107
-
-### 1. CADASTRAR NOVO USUÁRIO (Senha é salva como Hash no Supabase!)
+### 1. CADASTRAR NOVO USUÁRIO
 POST http://localhost:3001/api/auth/cadastrar
 Content-Type: application/json
 
@@ -37,40 +13,33 @@ POST http://localhost:3001/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "carlos@email.com",
-  "senha": "senhaSegura123"
+  "email": "julio@email.com",
+  "senha": "123456"
 }
 
-### 3. TENTAR CRIAR CHAMADO SEM TOKEN (Deve retornar Erro 401 - Negado)
+### 3. LISTAR TODOS OS CHAMADOS (Pública)
+GET http://localhost:3001/api/chamados
+
+### 4. CRIAR CHAMADO COM TOKEN (Substitua SEU_TOKEN_AQUI)
 POST http://localhost:3001/api/chamados
 Content-Type: application/json
-
-{
-  "titulo": "Tentativa de invasão",
-  "descricao": "Sem token de autorização"
-}
-
-### 4. CRIAR CHAMADO COM TOKEN VÁLIDO (Cole o token retornado do login abaixo)
-POST http://localhost:3001/api/chamados
-Content-Type: application/json
-Authorization: Bearer COLE_O_TOKEN_AQUI_APOS_FAZER_LOGIN
+Authorization: Bearer SEU_TOKEN_AQUI
 
 {
   "titulo": "Monitor sem imagem no setor 3",
-  "descricao": "Cabo HDMI solto na estação de trabalho.",
+  "descricao": "Cabo de vídeo solto na estação de trabalho.",
   "prioridade": "Média"
 }
 
-
-//TESTES PARA O MARIADB
-
-### CADASTRAR NOVO CHAMADO NO MARIADB (POST)
-POST http://localhost:3001/api/mariadb/chamados
+### 5. ATUALIZAR STATUS DO CHAMADO (PUT)
+PUT http://localhost:3001/api/chamados/1
 Content-Type: application/json
+Authorization: Bearer SEU_TOKEN_AQUI
 
 {
-  "titulo": "Computador não liga no setor de Vendas",
-  "descricao": "Fonte de alimentação com cheiro de queimado.",
-  "prioridade": "Alta",
-  "usuario_id": 1
+  "status": "Em Andamento"
 }
+
+### 6. EXCLUIR CHAMADO (DELETE)
+DELETE http://localhost:3001/api/chamados/1
+Authorization: Bearer SEU_TOKEN_AQUI

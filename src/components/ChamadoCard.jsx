@@ -4,21 +4,25 @@ export default function ChamadoCard({
   titulo,
   descricao,
   prioridade,
+  status,
   statusInicial,
   data,
   onAlternarStatus,
   onRemover,
 }) {
-  const classeStatus = statusInicial
-    ? statusInicial.toLowerCase().replace(" ", "-")
-    : "aberto";
+  const statusExibido = status || statusInicial || "Aberto";
+  const classeStatus = statusExibido
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "-");
 
   return (
     <article className="chamado-card">
       <div className="chamado-header">
         <span className="chamado-id">#{id}</span>
         <span className={`status-badge status-${classeStatus}`}>
-          {statusInicial}
+          {statusExibido}
         </span>
       </div>
 
@@ -33,7 +37,11 @@ export default function ChamadoCard({
       </div>
 
       <div className="chamado-acoes">
-        <button className="btn-status" onClick={onAlternarStatus}>
+        <button
+          className="btn-status"
+          onClick={onAlternarStatus}
+          title="Clique para mudar entre Aberto -> Em Andamento -> Concluído"
+        >
           🔄 Alterar Status
         </button>
 

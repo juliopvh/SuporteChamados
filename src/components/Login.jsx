@@ -1,68 +1,105 @@
 // src/components/Login.jsx
-import { useState } from 'react';
+import { useState } from "react";
+import { API_BASE_URL } from "../config/api";
 
 export default function Login({ onLoginSucesso }) {
   const [modoCadastro, setModoCadastro] = useState(false);
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
+  const [mensagemSucesso, setMensagemSucesso] = useState("");
   const [carregando, setCarregando] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setErro('');
+    setErro("");
+    setMensagemSucesso("");
     setCarregando(true);
 
-    // Escolhe a rota de Login ou de Cadastro na API
     const url = modoCadastro
-      ? 'https://suportechamados-6eyi.onrender.com/api/auth/cadastrar'
-      : 'https://suportechamados-6eyi.onrender.com/api/auth/login';
+      ? `${API_BASE_URL}/api/auth/cadastrar`
+      : `${API_BASE_URL}/api/auth/login`;
 
-    const corpo = modoCadastro
-      ? { nome, email, senha }
-      : { email, senha };
+    const corpo = modoCadastro ? { nome, email, senha } : { email, senha };
 
     try {
       const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(corpo)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
       });
 
       const dados = await res.json();
 
       if (!res.ok) {
-        throw new Error(dados.erro || 'Falha na operação.');
+        throw new Error(dados.erro || "Falha na operação.");
       }
 
       if (modoCadastro) {
-        alert('Conta criada com sucesso! Faça login para continuar.');
+        setMensagemSucesso("Conta criada com sucesso! Faça login para continuar.");
         setModoCadastro(false);
-        setSenha('');
+        setSenha("");
       } else {
-        // Guarda o token e o usuário no navegador (localStorage)
-        localStorage.setItem('token_chamados', dados.token);
-        localStorage.setItem('usuario_chamados', JSON.stringify(dados.usuario));
-        
-        // Avisa o App.jsx que o login deu certo
+        localStorage.setItem("token_chamados", dados.token);
+        localStorage.setItem("usuario_chamados", JSON.stringify(dados.usuario));
         onLoginSucesso(dados.usuario, dados.token);
       }
     } catch (err) {
-      setErro(err.message);
+      setErro(err.message || "Não foi possível conectar ao servidor.");
     } finally {
       setCarregando(false);
     }
   }
 
   return (
-    <div className="login-container" style={{ maxWidth: '400px', margin: '60px auto', padding: '24px', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <h2 style={{ textAlign: 'center', color: '#1e293b' }}>
-          🔐 {modoCadastro ? 'Criar Conta' : 'Login no Sistema'}
+    <div
+      className="login-container"
+      style={{
+        maxWidth: "420px",
+        margin: "60px auto",
+        padding: "28px",
+        background: "#fff",
+        borderRadius: "10px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+      >
+        <h2 style={{ textAlign: "center", color: "#1e293b" }}>
+          🔐 {modoCadastro ? "Criar Conta" : "Login no Sistema"}
         </h2>
 
-        {erro && <div className="mensagem-erro" style={{ padding: '8px', background: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontSize: '0.85rem' }}>{erro}</div>}
+        {erro && (
+          <div
+            className="mensagem-erro"
+            style={{
+              padding: "10px",
+              background: "#fee2e2",
+              color: "#dc2626",
+              borderRadius: "6px",
+              fontSize: "0.85rem",
+            }}
+          >
+            {erro}
+          </div>
+        )}
+
+        {mensagemSucesso && (
+          <div
+            style={{
+              padding: "10px",
+              background: "#dcfce7",
+              color: "#15803d",
+              borderRadius: "6px",
+              fontSize: "0.85rem",
+            }}
+          >
+            {mensagemSucesso}
+          </div>
+        )}
 
         {modoCadastro && (
           <div className="form-group">
@@ -99,15 +136,36 @@ export default function Login({ onLoginSucesso }) {
           />
         </div>
 
-        <button type="submit" className="btn-salvar" disabled={carregando}>
-          {carregando ? 'Processando...' : modoCadastro ? 'Cadastrar' : 'Entrar'}
+        <button
+          type="submit"
+          className="btn-salvar"
+          disabled={carregando}
+          style={{ opacity: carregando ? 0.7 : 1, marginTop: "6px" }}
+        >
+          {carregando
+            ? "Conectando ao servidor..."
+            : modoCadastro
+            ? "Cadastrar"
+            : "Entrar"}
         </button>
 
-        <p 
-          style={{ textAlign: 'center', fontSize: '0.85rem', color: '#2563eb', cursor: 'pointer', marginTop: '10px' }}
-          onClick={() => { setModoCadastro(!modoCadastro); setErro(''); }}
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: "0.85rem",
+            color: "#2563eb",
+            cursor: "pointer",
+            marginTop: "10px",
+          }}
+          onClick={() => {
+            setModoCadastro(!modoCadastro);
+            setErro("");
+            setMensagemSucesso("");
+          }}
         >
-          {modoCadastro ? 'Já tem conta? Faça Login' : 'Não tem conta? Cadastre-se aqui'}
+          {modoCadastro
+            ? "Já tem conta? Faça Login"
+            : "Não tem conta? Cadastre-se aqui"}
         </p>
       </form>
     </div>

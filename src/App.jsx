@@ -1,148 +1,294 @@
-// src/App.jsx - Com Tela de Login e Proteção
-import { useState, useEffect } from 'react';
-import Header from './components/Header';
-import ResumoMetricas from './components/ResumoMetricas';
-import FormularioChamado from './components/FormularioChamado';
-import FiltroChamados from './components/FiltroChamados';
-import ChamadoCard from './components/ChamadoCard';
-import Login from './components/Login'; // Importamos o Login
-import './App.css';
+// src/App.jsx - Sistema de Chamados integrado ao Supabase
+import { useState, useEffect, useCallback } from "react";
+import Header from "./components/Header";
+import ResumoMetricas from "./components/ResumoMetricas";
+import FormularioChamado from "./components/FormularioChamado";
+import FiltroChamados from "./components/FiltroChamados";
+import ChamadoCard from "./components/ChamadoCard";
+import Login from "./components/Login";
+import { API_BASE_URL } from "./config/api";
+import "./App.css";
 
 export default function App() {
-  // Estado de Autenticação
   const [usuario, setUsuario] = useState(() => {
-    const salvo = localStorage.getItem('usuario_chamados');
-    return salvo ? JSON.parse(salvo) : null;
+    try {
+      const salvo = localStorage.getItem("usuario_chamados");
+      return salvo ? JSON.parse(salvo) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [token, setToken] = useState(() => localStorage.getItem('token_chamados') || '');
+  const [token, setToken] = useState(
+    () => localStorage.getItem("token_chamados") || ""
+  );
   const [chamados, setChamados] = useState([]);
-  const [busca, setBusca] = useState('');
-  const [bancoDestino, setBancoDestino] = useState('supabase');
+  const [busca, setBusca] = useState("");
+  const [carregando, setCarregando] = useState(() => Boolean(usuario));
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  const API_URL = bancoDestino === 'supabase'
-    ? 'https://suportechamados-6eyi.onrender.com/api/chamados'
-    : 'https://suportechamados-6eyi.onrender.com/api/mariadb/chamados';
-
-  async function carregarChamados() {
-    try {
-      const res = await fetch(API_URL);
-      const respostaJson = await res.json();
-      const listaDados = respostaJson.dados ? respostaJson.dados : respostaJson;
-      setChamados(Array.isArray(listaDados) ? listaDados : []);
-    } catch (erro) {
-      setChamados([]);
+  const handleLogout = useCallback((mensagem) => {
+    localStorage.removeItem("usuario_chamados");
+    localStorage.removeItem("token_chamados");
+    setUsuario(null);
+    setToken("");
+    setChamados([]);
+    if (mensagem && typeof mensagem === "string") {
+      alert(mensagem);
     }
-  }
+  }, []);
+
+  const carregarChamados = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/chamados`);
+      if (!res.ok) {
+        throw new Error("Não foi possível carregar os chamados.");
+      }
+
+      const respostaJson = await res.json();
+      const lista = Array.isArray(respostaJson)
+        ? respostaJson
+        : respostaJson.dados || [];
+
+      setChamados(lista);
+      setErro("");
+    } catch (err) {
+      console.error("Erro ao carregar chamados:", err);
+      setErro("Falha ao sincronizar com o banco de dados Supabase.");
+      setChamados([]);
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
 
   useEffect(() => {
+    let ativo = true;
+
     if (usuario) {
-      carregarChamados();
+      fetch(`${API_BASE_URL}/api/chamados`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Erro ao carregar");
+          return res.json();
+        })
+        .then((respostaJson) => {
+          if (!ativo) return;
+          const lista = Array.isArray(respostaJson)
+            ? respostaJson
+            : respostaJson.dados || [];
+          setChamados(lista);
+          setErro("");
+          setCarregando(false);
+        })
+        .catch((err) => {
+          if (!ativo) return;
+          console.error("Erro ao carregar chamados:", err);
+          setErro("Falha ao sincronizar com o banco de dados Supabase.");
+          setChamados([]);
+          setCarregando(false);
+        });
     }
-  }, [bancoDestino, usuario]);
+
+    return () => {
+      ativo = false;
+    };
+  }, [usuario]);
 
   function handleLoginSucesso(usuarioLogado, tokenGerado) {
     setUsuario(usuarioLogado);
     setToken(tokenGerado);
-  }
-
-  function handleLogout() {
-    localStorage.removeItem('usuario_chamados');
-    localStorage.removeItem('token_chamados');
-    setUsuario(null);
-    setToken('');
+    setCarregando(true);
   }
 
   async function adicionarChamado(novoChamado) {
+    setSalvando(true);
+    setErro("");
+
     try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+      const res = await fetch(`${API_BASE_URL}/api/chamados`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(novoChamado)
+        body: JSON.stringify(novoChamado),
       });
 
-      if (!res.ok) throw new Error('Erro ao salvar');
-      carregarChamados();
-    } catch (erro) {
-      alert('Falha ao cadastrar chamado.');
+      if (res.status === 401 || res.status === 403) {
+        handleLogout("Sua sessão expirou. Faça login novamente.");
+        return;
+      }
+
+      if (!res.ok) {
+        const dadosErro = await res.json().catch(() => ({}));
+        throw new Error(dadosErro.erro || "Erro ao salvar chamado.");
+      }
+
+      await carregarChamados();
+    } catch (err) {
+      console.error("Erro ao adicionar chamado:", err);
+      alert(err.message || "Falha ao cadastrar chamado.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function alternarStatusChamado(id, statusAtual) {
+    let proximoStatus = "Em Andamento";
+    const statusNormalizado = (statusAtual || "").toLowerCase();
+
+    if (statusNormalizado === "aberto") {
+      proximoStatus = "Em Andamento";
+    } else if (statusNormalizado === "em andamento") {
+      proximoStatus = "Concluído";
+    } else {
+      proximoStatus = "Aberto";
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/chamados/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: proximoStatus }),
+      });
+
+      if (res.status === 401 || res.status === 403) {
+        handleLogout("Sua sessão expirou. Faça login novamente.");
+        return;
+      }
+
+      if (!res.ok) {
+        const dadosErro = await res.json().catch(() => ({}));
+        throw new Error(dadosErro.erro || "Erro ao atualizar status.");
+      }
+
+      await carregarChamados();
+    } catch (err) {
+      console.error("Erro ao alternar status:", err);
+      alert(err.message || "Falha ao atualizar status do chamado.");
     }
   }
 
   async function removerChamado(id) {
+    if (!window.confirm("Tem certeza de que deseja remover este chamado?")) {
+      return;
+    }
+
     try {
-      const res = await fetch(`${API_URL}/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${API_BASE_URL}/api/chamados/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      if (!res.ok) throw new Error('Erro ao excluir');
-      carregarChamados();
-    } catch (erro) {
-      alert('Falha ao excluir chamado.');
+      if (res.status === 401 || res.status === 403) {
+        handleLogout("Sua sessão expirou. Faça login novamente.");
+        return;
+      }
+
+      if (!res.ok) {
+        const dadosErro = await res.json().catch(() => ({}));
+        throw new Error(dadosErro.erro || "Erro ao excluir chamado.");
+      }
+
+      await carregarChamados();
+    } catch (err) {
+      console.error("Erro ao remover chamado:", err);
+      alert(err.message || "Falha ao excluir chamado.");
     }
   }
 
-  // SE NÃO ESTIVER LOGADO -> MOSTRA APENAS A TELA DE LOGIN!
+  // Se não estiver autenticado, exibe a tela de login
   if (!usuario) {
     return <Login onLoginSucesso={handleLoginSucesso} />;
   }
 
-  // SE ESTIVER LOGADO -> MOSTRA O PAINEL COMPLETO
+  const concluidosCount = chamados.filter((c) => {
+    const s = (c.status || "").toLowerCase();
+    return s === "concluído" || s === "concluido";
+  }).length;
+
   const chamadosFiltrados = chamados.filter((c) =>
-    c.titulo.toLowerCase().includes(busca.toLowerCase())
+    (c.titulo || "").toLowerCase().includes(busca.toLowerCase()) ||
+    (c.descricao || "").toLowerCase().includes(busca.toLowerCase())
   );
 
   return (
     <div className="app-container">
-      <Header />
+      <Header
+        usuario={usuario}
+        totalResolvidos={concluidosCount}
+        onLogout={() => handleLogout()}
+      />
 
       <main className="main-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <span>👋 Olá, <strong>{usuario.nome}</strong> ({usuario.email})</span>
-          <button 
-            onClick={handleLogout}
-            style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
-          >
-            🚪 Sair (Logout)
-          </button>
-        </div>
+        {erro && (
+          <div className="alerta-erro">
+            <span>⚠️ {erro}</span>
+            <button
+              onClick={() => {
+                setCarregando(true);
+                carregarChamados();
+              }}
+              style={{
+                background: "#dc2626",
+                color: "#fff",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                cursor: "pointer",
+              }}
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        )}
 
-        <ResumoMetricas />
+        <ResumoMetricas chamados={chamados} />
 
-        <div className="seletor-banco-container" style={{ marginBottom: '15px', background: '#fff', padding: '12px', borderRadius: '8px' }}>
-          <label style={{ fontWeight: 'bold', marginRight: '10px' }}>
-            🗄️ Selecione o Banco de Dados Ativo:
-          </label>
-          <select value={bancoDestino} onChange={(e) => setBancoDestino(e.target.value)}>
-            <option value="supabase">Supabase (Nuvem / PostgreSQL)</option>
-            <option value="mariadb">MariaDB (Local / DBeaver)</option>
-          </select>
-        </div>
-
-        <FormularioChamado onAdicionarChamado={adicionarChamado} />
+        <FormularioChamado
+          onAdicionarChamado={adicionarChamado}
+          salvando={salvando}
+        />
 
         <div className="top-bar">
-          <h2>Chamados em [{bancoDestino.toUpperCase()}] ({chamadosFiltrados.length})</h2>
+          <h2>Chamados ({chamadosFiltrados.length})</h2>
           <FiltroChamados busca={busca} setBusca={setBusca} />
         </div>
 
-        <section className="lista-chamados">
-          {chamadosFiltrados.map((chamado) => (
-            <ChamadoCard
-              key={chamado.id}
-              id={chamado.id}
-              titulo={chamado.titulo}
-              descricao={chamado.descricao}
-              prioridade={chamado.prioridade}
-              statusInicial={chamado.status}
-              data={chamado.data}
-              onRemover={() => removerChamado(chamado.id)}
-            />
-          ))}
-        </section>
+        {carregando && chamados.length === 0 ? (
+          <div className="aviso-carregando">
+            <p>⏳ Carregando chamados do Supabase...</p>
+          </div>
+        ) : (
+          <section className="lista-chamados">
+            {chamadosFiltrados.length > 0 ? (
+              chamadosFiltrados.map((chamado) => (
+                <ChamadoCard
+                  key={chamado.id}
+                  id={chamado.id}
+                  titulo={chamado.titulo}
+                  descricao={chamado.descricao}
+                  prioridade={chamado.prioridade}
+                  status={chamado.status}
+                  data={chamado.data}
+                  onAlternarStatus={() =>
+                    alternarStatusChamado(chamado.id, chamado.status)
+                  }
+                  onRemover={() => removerChamado(chamado.id)}
+                />
+              ))
+            ) : (
+              <div className="sem-chamados">
+                <p>Nenhum chamado encontrado {busca ? `para "${busca}"` : ""}.</p>
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
